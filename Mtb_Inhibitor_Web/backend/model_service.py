@@ -62,6 +62,7 @@ class MtbModelService:
                 
                 # Load one model at a time to save memory on Render
                 model = load_checkpoint(path, device=self.device)
+                model.eval() # Ensure evaluation mode
                 scalers = load_scalers(path)
                 
                 scaler, features_scaler, _, _, _ = scalers
@@ -74,11 +75,12 @@ class MtbModelService:
                 # num_workers=0, batch_size=8 to prevent memory spikes
                 loader = MoleculeDataLoader(dataset=current_test_data, batch_size=8, num_workers=0)
                 
-                model_preds = predict(
-                    model=model,
-                    data_loader=loader,
-                    scaler=scaler
-                )
+                with torch.no_grad():
+                    model_preds = predict(
+                        model=model,
+                        data_loader=loader,
+                        scaler=scaler
+                    )
                 all_preds.append(np.array(model_preds))
                 
                 # Release memory explicitly
