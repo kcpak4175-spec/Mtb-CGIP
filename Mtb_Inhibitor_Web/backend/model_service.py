@@ -39,11 +39,10 @@ class MtbModelService:
     def __init__(self, base_model_path):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model_paths = [os.path.join(base_model_path, f'model_{i}', 'model.pt') for i in range(5)]
-        self.cutoffs = DEFAULT_CUTOFFS
         self.features_generator = get_features_generator('rdkit_2d_normalized')
         
-        # Limit PyTorch threads to reduce memory and CPU overhead on Render Free Tier
-        torch.set_num_threads(1)
+        # Optimize PyTorch threading for balance between speed and memory
+        torch.set_num_threads(2)
 
     def predict_smiles(self, smiles_list):
         try:
@@ -72,8 +71,8 @@ class MtbModelService:
                 if features_scaler is not None:
                     current_test_data.normalize_features(features_scaler)
                 
-                # num_workers=0 for Windows/Render compatibility
-                loader = MoleculeDataLoader(dataset=current_test_data, batch_size=64, num_workers=0)
+                # num_workers=0, batch_size=8 to prevent memory spikes
+                loader = MoleculeDataLoader(dataset=current_test_data, batch_size=8, num_workers=0)
                 
                 model_preds = predict(
                     model=model,
