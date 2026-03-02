@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+
+<html lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Mtb-Inhibitor Finder AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1a355b",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#13181f",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .radar-chart-container {
+            background-image: radial-gradient(circle, #d3dae3 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #d3dae3; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-800 font-display">
+<div class="flex h-screen overflow-hidden">
+<!-- Sidebar -->
+<aside class="w-72 bg-primary flex flex-col h-full border-r border-primary/20 shrink-0">
+<div class="p-6">
+<h1 class="text-white text-lg font-bold leading-tight">Mtb-Inhibitor Finder AI</h1>
+<p class="text-white/60 text-xs mt-1">Mtb 저해제 발굴 AI</p>
+</div>
+<nav class="flex-1 px-4 py-2 space-y-6 overflow-y-auto custom-scrollbar">
+<!-- Data Input Section -->
+<div class="space-y-3">
+<p class="text-white/40 text-[10px] font-bold uppercase tracking-wider px-2">데이터 입력 (Data Input)</p>
+<div class="space-y-2">
+<button class="w-full flex items-center gap-3 px-3 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded transition-colors group">
+<span class="material-symbols-outlined text-xl">upload_file</span>
+<span class="text-sm font-medium">Import...</span>
+</button>
+<button class="w-full flex items-center gap-3 px-3 py-2.5 bg-white/5 hover:bg-white/10 text-white/80 rounded transition-colors">
+<span class="material-symbols-outlined text-xl">restart_alt</span>
+<span class="text-sm font-medium">초기화 (Reset)</span>
+</button>
+</div>
+</div>
+<!-- Links Section -->
+<div class="space-y-3">
+<p class="text-white/40 text-[10px] font-bold uppercase tracking-wider px-2">외부 리소스 링크</p>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-white/70 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">link</span>
+<span class="text-sm">SMILES 코드 검색</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-white/70 hover:text-white transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">search</span>
+<span class="text-sm">화합물 정보 검색</span>
+</a>
+</div>
+</div>
+<!-- Export Section -->
+<div class="space-y-3">
+<p class="text-white/40 text-[10px] font-bold uppercase tracking-wider px-2">예측 결과 보고서 출력</p>
+<div class="grid grid-cols-2 gap-2">
+<button class="flex flex-col items-center justify-center gap-1 p-3 bg-white/5 hover:bg-white/10 text-white rounded">
+<span class="material-symbols-outlined text-xl">description</span>
+<span class="text-[10px]">Excel 파일</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 p-3 bg-white/5 hover:bg-white/10 text-white rounded">
+<span class="material-symbols-outlined text-xl">picture_as_pdf</span>
+<span class="text-[10px]">PDF 파일</span>
+</button>
+</div>
+</div>
+</nav>
+<div class="p-4 border-t border-white/10">
+<div class="flex items-center gap-3 px-3 py-2 rounded bg-white/5">
+<div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-xs">AI</div>
+<div>
+<p class="text-white text-xs font-medium">System Status</p>
+<p class="text-green-400 text-[10px]">Ready to process</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col overflow-hidden bg-background-light">
+<header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-400">dashboard</span>
+<span class="text-slate-600 font-medium">Dashboard / Screening Report</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="text-xs text-slate-400 italic">Last analysis: 2023-11-15 14:30</span>
+</div>
+</header>
+<div class="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
+<!-- Table Section -->
+<section class="space-y-4">
+<div class="flex items-end justify-between">
+<div>
+<h2 class="text-2xl font-bold text-slate-900">스크리닝 요약 리포트 (Screening Summary Report)</h2>
+<p class="text-slate-500 text-sm mt-1">Mtb 저해제 발굴을 위한 화합물 스크리닝 결과 데이터입니다.</p>
+</div>
+<div class="flex items-center gap-1">
+<button class="p-2 hover:bg-slate-200 rounded text-slate-600"><span class="material-symbols-outlined">chevron_left</span></button>
+<span class="text-sm font-bold px-3 py-1 bg-primary text-white rounded">1</span>
+<span class="text-sm px-3 py-1 hover:bg-slate-200 rounded cursor-pointer">2</span>
+<span class="text-sm px-3 py-1 hover:bg-slate-200 rounded cursor-pointer">3</span>
+<button class="p-2 hover:bg-slate-200 rounded text-slate-600"><span class="material-symbols-outlined">chevron_right</span></button>
+</div>
+</div>
+<div class="bg-white rounded border border-slate-200 shadow-sm overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50 border-b border-slate-200">
+<th class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">화합물 명</th>
+<th class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">SMILES</th>
+<th class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider text-center">Hit Count</th>
+<th class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Mechanism Profile</th>
+<th class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">Expert Summary</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100">
+<tr class="hover:bg-blue-50/30 transition-colors">
+<td class="px-6 py-4 font-bold text-primary text-sm">IDR-0106878</td>
+<td class="px-6 py-4 font-mono text-[11px] text-slate-500 max-w-xs truncate">CC(C)C1=CC=C(C=C1)NC(=O)CN2C=CN=C2</td>
+<td class="px-6 py-4 text-center">
+<span class="inline-block px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded">13</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 85%"></div>
+</div>
+<span class="text-xs font-bold text-slate-700">85%</span>
+</div>
+</td>
+<td class="px-6 py-4 text-xs text-slate-500 italic">Potent inhibition of cell wall synthesis clusters.</td>
+</tr>
+<tr class="hover:bg-blue-50/30 transition-colors">
+<td class="px-6 py-4 font-bold text-primary text-sm">IDR-0106885</td>
+<td class="px-6 py-4 font-mono text-[11px] text-slate-500 max-w-xs truncate">CN(C)C1=CC=C(C=C1)S(=O)(=O)N2CCOCC2</td>
+<td class="px-6 py-4 text-center">
+<span class="inline-block px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded">8</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 45%"></div>
+</div>
+<span class="text-xs font-bold text-slate-700">45%</span>
+</div>
+</td>
+<td class="px-6 py-4 text-xs text-slate-500 italic">Moderate activity across metabolic pathways.</td>
+</tr>
+<tr class="hover:bg-blue-50/30 transition-colors">
+<td class="px-6 py-4 font-bold text-primary text-sm">IDR-0106912</td>
+<td class="px-6 py-4 font-mono text-[11px] text-slate-500 max-w-xs truncate">C1=CC=C(C=C1)C2=CC(=NO2)C3=CC=CC=C3</td>
+<td class="px-6 py-4 text-center">
+<span class="inline-block px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded">11</span>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 68%"></div>
+</div>
+<span class="text-xs font-bold text-slate-700">68%</span>
+</div>
+</td>
+<td class="px-6 py-4 text-xs text-slate-500 italic">High specificity for C1-C5 gene clusters.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Detailed Analysis Section -->
+<section class="space-y-4">
+<div class="flex items-center justify-between border-b border-slate-200 pb-2">
+<h2 class="text-lg font-bold text-slate-800">Antibacterial Profile: <span class="text-primary underline">IDR-0106878</span> (Hits: 13)</h2>
+<div class="text-slate-500 text-sm">Compound <span class="font-bold text-slate-900">1</span> of 10</div>
+</div>
+<div class="grid grid-cols-12 gap-6 h-[500px]">
+<!-- Chemical Structure -->
+<div class="col-span-4 bg-white rounded border border-slate-200 p-6 flex flex-col items-center justify-center relative shadow-sm group">
+<p class="absolute top-4 left-4 text-[10px] text-slate-400 font-bold uppercase tracking-widest">Molecular Structure</p>
+<div class="w-full h-full flex items-center justify-center">
+<div class="w-64 h-64 bg-slate-50 rounded border border-dashed border-slate-200 flex flex-col items-center justify-center relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-br from-white/20 to-primary/5"></div>
+<!-- Mockup of a chemical structure with CSS -->
+<div class="relative w-32 h-32 opacity-80 group-hover:opacity-100 transition-opacity">
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-6xl">matter</span>
+</div>
+<img alt="Chemical structure of IDR-0106878" class="absolute inset-0 object-contain mix-blend-multiply" data-alt="Clear 2D chemical structure diagram for molecule IDR-0106878" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2jp6zZnW-yakA24Rz1rNUucNrusc_eYPeT_8L4no-y2abbRmNEYo6RRlIPFW-RTXKv2WqBOOJQVGWMTCUai47jFyM_CQ7bwlUYfqgu70V9kd8ZsCFIkyRtU0gk68SdQwPfNpDtLMT33DWEzTkOtY9iLoHGiPlaEYQVCp4kl0j_iJfE8AXAe1uAXF6A0y5nRdNHS8ibj59CXXoa7XMdvcOR7N-W5adxkX75QW6dOsJft9Dac-F5x9_tQgCNYwdDbDBSDXsF7QDukgj"/>
+</div>
+</div>
+</div>
+<div class="mt-4 w-full text-center">
+<p class="text-xs font-bold text-slate-600">IDR-0106878</p>
+<p class="text-[10px] text-slate-400 mt-1">MW: 285.34 | LogP: 2.1</p>
+</div>
+</div>
+<!-- Radar Chart -->
+<div class="col-span-5 bg-white rounded border border-slate-200 p-6 flex flex-col shadow-sm">
+<p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-4">Inhibition Effect across Clusters (C1-C13)</p>
+<div class="flex-1 radar-chart-container relative flex items-center justify-center border border-slate-50 rounded">
+<!-- SVG Radar Chart Simulation -->
+<svg class="w-full h-full p-4" viewbox="0 0 200 200">
+<!-- Polygons for grid -->
+<polygon fill="none" points="100,20 180,60 180,140 100,180 20,140 20,60" stroke="#e2e8f0" stroke-width="0.5"></polygon>
+<polygon fill="none" points="100,40 160,73.3 160,126.6 100,160 40,126.6 40,73.3" stroke="#e2e8f0" stroke-width="0.5"></polygon>
+<polygon fill="none" points="100,60 140,86.6 140,113.3 100,140 60,113.3 60,86.6" stroke="#e2e8f0" stroke-width="0.5"></polygon>
+<!-- Data Polygon -->
+<polygon fill="#1a355b" fill-opacity="0.3" points="100,30 140,65 170,140 100,170 50,150 40,70" stroke="#1a355b" stroke-width="1.5"></polygon>
+<!-- Labels -->
+<text fill="#64748b" font-size="8" font-weight="bold" text-anchor="middle" x="100" y="15">C1</text>
+<text fill="#64748b" font-size="8" font-weight="bold" text-anchor="start" x="185" y="60">C3</text>
+<text fill="#64748b" font-size="8" font-weight="bold" text-anchor="start" x="185" y="145">C6</text>
+<text fill="#64748b" font-size="8" font-weight="bold" text-anchor="middle" x="100" y="195">C9</text>
+<text fill="#64748b" font-size="8" font-weight="bold" text-anchor="end" x="15" y="145">C11</text>
+<text fill="#64748b" font-size="8" font-weight="bold" text-anchor="end" x="15" y="60">C13</text>
+</svg>
+</div>
+</div>
+<!-- Legend -->
+<div class="col-span-3 bg-white rounded border border-slate-200 p-6 shadow-sm overflow-hidden flex flex-col">
+<p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-4">Cluster Descriptions</p>
+<div class="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2">
+<div class="flex items-start gap-2 p-1.5 rounded bg-slate-50 border border-slate-100">
+<span class="text-[10px] font-bold bg-primary text-white w-5 h-5 flex items-center justify-center shrink-0">C1</span>
+<span class="text-[11px] text-slate-600 leading-tight">Wall synthesis inhibitors</span>
+</div>
+<div class="flex items-start gap-2 p-1.5 rounded hover:bg-slate-50 border border-transparent">
+<span class="text-[10px] font-bold bg-slate-200 text-slate-600 w-5 h-5 flex items-center justify-center shrink-0">C2</span>
+<span class="text-[11px] text-slate-600 leading-tight">Transcription/Translation</span>
+</div>
+<div class="flex items-start gap-2 p-1.5 rounded hover:bg-slate-50 border border-transparent">
+<span class="text-[10px] font-bold bg-slate-200 text-slate-600 w-5 h-5 flex items-center justify-center shrink-0">C3</span>
+<span class="text-[11px] text-slate-600 leading-tight">DNA metabolism pathway</span>
+</div>
+<div class="flex items-start gap-2 p-1.5 rounded hover:bg-slate-50 border border-transparent">
+<span class="text-[10px] font-bold bg-slate-200 text-slate-600 w-5 h-5 flex items-center justify-center shrink-0">C4</span>
+<span class="text-[11px] text-slate-600 leading-tight">Intermediary metabolism</span>
+</div>
+<div class="flex items-start gap-2 p-1.5 rounded hover:bg-slate-50 border border-transparent">
+<span class="text-[10px] font-bold bg-slate-200 text-slate-600 w-5 h-5 flex items-center justify-center shrink-0">C5</span>
+<span class="text-[11px] text-slate-600 leading-tight">ATP production inhibitors</span>
+</div>
+<div class="flex items-start gap-2 p-1.5 rounded hover:bg-slate-50 border border-transparent">
+<span class="text-[10px] font-bold bg-slate-200 text-slate-600 w-5 h-5 flex items-center justify-center shrink-0">C6</span>
+<span class="text-[11px] text-slate-600 leading-tight">Lipid biosynthesis</span>
+</div>
+<div class="flex items-start gap-2 p-1.5 rounded hover:bg-slate-50 border border-transparent">
+<span class="text-[10px] font-bold bg-slate-200 text-slate-600 w-5 h-5 flex items-center justify-center shrink-0">C7</span>
+<span class="text-[11px] text-slate-600 leading-tight">Regulatory genes activation</span>
+</div>
+<div class="flex items-start gap-2 p-1.5 rounded hover:bg-slate-50 border border-transparent">
+<span class="text-[10px] font-bold bg-slate-200 text-slate-600 w-5 h-5 flex items-center justify-center shrink-0">C8</span>
+<span class="text-[11px] text-slate-600 leading-tight">Cellular envelope proteins</span>
+</div>
+<div class="flex items-start gap-2 p-1.5 rounded hover:bg-slate-50 border border-transparent">
+<span class="text-[10px] font-bold bg-slate-200 text-slate-600 w-5 h-5 flex items-center justify-center shrink-0">C9</span>
+<span class="text-[11px] text-slate-600 leading-tight">Hypoxia response</span>
+</div>
+<div class="flex items-start gap-2 p-1.5 rounded hover:bg-slate-50 border border-transparent">
+<span class="text-[10px] font-bold bg-slate-200 text-slate-600 w-5 h-5 flex items-center justify-center shrink-0">C10</span>
+<span class="text-[11px] text-slate-600 leading-tight">Persistence factors</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Footer Footer -->
+<footer class="h-10 bg-slate-100 border-t border-slate-200 flex items-center justify-between px-8 shrink-0">
+<div class="text-[10px] text-slate-400 font-medium tracking-wide">MTB-INHIBITOR DISCOVERY PLATFORM v2.4.0</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-green-500"></span>
+<span class="text-[10px] text-slate-500">ML Model Core 2.1 Online</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-blue-500"></span>
+<span class="text-[10px] text-slate-500">Cluster Analysis Engine Online</span>
+</div>
+</div>
+</footer>
+</main>
+</div>
+</body></html>

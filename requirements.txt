@@ -1,0 +1,15 @@
+chemprop==1.6.1
+numpy==1.26.4
+rdkit>=2023.3.3
+fastapi
+uvicorn
+python-multipart
+pandas
+openpyxl
+plotly
+requests
+torch
+descriptastorus>=2.8.0
+setuptools<70
+streamlit
+streamlit-option-menu

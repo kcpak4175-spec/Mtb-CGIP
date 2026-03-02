@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Mtb-Inhibitor Finder AI</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1a355b",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#13181f",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        html {
+            font-size: 120%;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: #000000;
+        }
+
+        .radar-chart-container {
+            background-image: radial-gradient(circle, #d3dae3 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #d3dae3;
+            border-radius: 10px;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+    </style>
+</head>
+
+<body class="bg-background-light dark:bg-background-dark text-slate-800 font-display">
+    <div id="loading" class="loading-overlay">
+        <div class="flex flex-col items-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <p class="mt-4 font-bold text-primary">분석 중... (AI Processing)</p>
+        </div>
+    </div>
+
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-72 bg-primary flex flex-col h-full border-r border-primary/20 shrink-0">
+            <div class="p-6">
+                <h1 class="text-white text-lg font-bold leading-tight">Mtb-Inhibitor Finder AI</h1>
+                <p class="text-white/60 text-xs mt-1">Mtb 저해제 발굴 AI</p>
+            </div>
+            <nav class="flex-1 px-4 py-2 space-y-6 overflow-y-auto custom-scrollbar">
+                <!-- Data Input Section -->
+                <div class="space-y-3">
+                    <p class="text-white/40 text-[10px] font-bold uppercase tracking-wider px-2">데이터 입력 (Data Input)</p>
+                    <div class="space-y-2">
+                        <input type="file" id="fileInput" class="hidden" accept=".csv"
+                            onchange="handleFileUpload(event)">
+                        <button onclick="document.getElementById('fileInput').click()"
+                            class="w-full flex items-center gap-3 px-3 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded transition-colors group">
+                            <span class="material-symbols-outlined text-xl">upload_file</span>
+                            <span class="text-sm font-medium">Import (CSV)</span>
+                        </button>
+                        <button onclick="resetData()"
+                            class="w-full flex items-center gap-3 px-3 py-2.5 bg-white/5 hover:bg-white/10 text-white/80 rounded transition-colors">
+                            <span class="material-symbols-outlined text-xl">restart_alt</span>
+                            <span class="text-sm font-medium">초기화 (Reset)</span>
+                        </button>
+                    </div>
+                </div>
+                <!-- Direct Input Section -->
+                <div class="space-y-3">
+                    <p class="text-white/40 text-[10px] font-bold uppercase tracking-wider px-2">직접 입력 (Direct Input)
+                    </p>
+                    <div class="space-y-2 px-2">
+                        <input type="text" id="directName" placeholder="약물명 (선택)"
+                            class="w-full bg-white/10 border-white/20 text-white text-xs rounded p-2 placeholder:text-white/30 focus:ring-1 focus:ring-white/40">
+                        <input type="text" id="directSmiles" placeholder="SMILES 코드 입력"
+                            class="w-full bg-white/10 border-white/20 text-white text-xs rounded p-2 placeholder:text-white/30 focus:ring-1 focus:ring-white/40">
+                        <button onclick="handleDirectInput()"
+                            class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white text-primary hover:bg-white/90 rounded transition-colors">
+                            <span class="material-symbols-outlined text-sm font-bold">play_arrow</span>
+                            <span class="text-xs font-bold">분석 실행 (Predict)</span>
+                        </button>
+                    </div>
+                </div>
+                <!-- Links Section -->
+                <div class="space-y-3">
+                    <p class="text-white/40 text-[10px] font-bold uppercase tracking-wider px-2">외부 리소스 링크</p>
+                    <div class="space-y-1">
+                        <a class="flex items-center gap-3 px-3 py-2 text-white hover:text-white transition-colors"
+                            href="https://pubchem.ncbi.nlm.nih.gov/" target="_blank">
+                            <span class="material-symbols-outlined text-lg">link</span>
+                            <span class="text-sm font-bold">PubChem 검색</span>
+                        </a>
+                        <a class="flex items-center gap-3 px-3 py-2 text-white hover:text-white transition-colors"
+                            href="https://www.chemspider.com/" target="_blank">
+                            <span class="material-symbols-outlined text-lg">search</span>
+                            <span class="text-sm font-bold">ChemSpider 검색</span>
+                        </a>
+                    </div>
+                </div>
+                <!-- Export Section -->
+                <div class="space-y-3">
+                    <p class="text-white/40 text-[10px] font-bold uppercase tracking-wider px-2">예측 결과 보고서 출력</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="exportData('excel')"
+                            class="flex flex-col items-center justify-center gap-1 p-3 bg-white/5 hover:bg-white/10 text-white rounded">
+                            <span class="material-symbols-outlined text-xl">description</span>
+                            <span class="text-[12px] font-bold">Excel 파일</span>
+                        </button>
+                        <button onclick="exportData('csv')"
+                            class="flex flex-col items-center justify-center gap-1 p-3 bg-white/5 hover:bg-white/10 text-white rounded">
+                            <span class="material-symbols-outlined text-xl">grid_on</span>
+                            <span class="text-[12px] font-bold">CSV 파일</span>
+                        </button>
+                    </div>
+                </div>
+            </nav>
+            <div class="p-4 border-t border-white/10">
+                <div class="flex items-center gap-3 px-3 py-2 rounded bg-white/5">
+                    <div id="statusDot" class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+                    <div>
+                        <p class="text-white text-xs font-bold">System Status</p>
+                        <p id="statusText" class="text-green-300 text-[12px] font-bold">Ready to process</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col overflow-hidden bg-background-light">
+            <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-slate-400">dashboard</span>
+                    <span class="text-slate-600 font-medium">Dashboard / Screening Report</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span id="lastAnalysis" class="text-xs text-slate-400 italic">Last analysis: None</span>
+                </div>
+            </header>
+
+            <div class="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
+                <!-- Table Section -->
+                <section class="space-y-4">
+                    <div class="flex items-end justify-between">
+                        <div>
+                            <h2 class="text-2xl font-bold text-black">스크리닝 요약 리포트 (Screening Summary Report)</h2>
+                            <p class="text-slate-900 text-sm mt-1 font-medium">Mtb 저해제 발굴을 위한 화합물 스크리닝 결과 데이터입니다.</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded border border-slate-200 shadow-sm overflow-hidden">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200">
+                                    <th class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        화합물 명</th>
+                                    <th class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        SMILES</th>
+                                    <th
+                                        class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider text-center">
+                                        Hit Count</th>
+                                    <th class="px-6 py-4 text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                        Expert Summary</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultTableBody"
+                                class="divide-y divide-slate-100 font-medium text-black text-sm">
+                                <tr>
+                                    <td colspan="4" class="px-6 py-12 text-center">CSV 파일을 업로드하여 분석을 시작하세요.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <!-- Pagination UI -->
+                        <div id="paginationContainer"
+                            class="px-6 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between hidden">
+                            <div class="text-xs text-black font-bold">
+                                Showing <span id="pageStart">0</span> to <span id="pageEnd">0</span> of <span
+                                    id="totalResults">0</span> results
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="prevPage()" id="prevBtn"
+                                    class="px-2 py-1 text-xs border border-slate-200 bg-white hover:bg-slate-50 rounded disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
+                                <div id="pageNumbers" class="flex gap-1"></div>
+                                <button onclick="nextPage()" id="nextBtn"
+                                    class="px-2 py-1 text-xs border border-slate-200 bg-white hover:bg-slate-50 rounded disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Detailed Analysis Section -->
+                <section id="detailSection" class="space-y-4 hidden">
+                    <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <h2 class="text-lg font-bold text-slate-800">Antibacterial Profile: <span id="detailName"
+                                class="text-primary underline">Select a compound</span> (Hits: <span
+                                id="detailHitCount">0</span>)</h2>
+                    </div>
+                    <div class="grid grid-cols-12 gap-6 h-[550px]">
+                        <!-- Chemical Structure -->
+                        <div
+                            class="col-span-4 bg-white rounded border border-slate-200 p-6 pt-14 flex flex-col items-center justify-start relative shadow-sm group">
+                            <div class="absolute top-4 left-4 right-4 flex justify-between items-center">
+                                <p class="text-[12px] text-black font-bold uppercase tracking-widest">Molecular
+                                    Structure</p>
+                                <button onclick="downloadMolImage()"
+                                    class="px-2 py-1 bg-primary/5 hover:bg-primary/10 text-primary text-[10px] font-bold rounded flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-xs">download</span> Export
+                                </button>
+                            </div>
+                            <div class="w-full h-full flex items-center justify-center">
+                                <div
+                                    class="w-64 h-64 bg-slate-50 rounded border border-dashed border-slate-200 flex flex-col items-center justify-center relative overflow-hidden">
+                                    <img id="molImage" src="" alt="Chemical structure" class="max-w-full max-h-full">
+                                    <div id="noMolImage" class="text-slate-300 flex flex-col items-center">
+                                        <span class="material-symbols-outlined text-6xl">matter</span>
+                                        <p class="text-[10px]">No structure available</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-4 w-full text-center">
+                                <p id="molNameLabel" class="text-xs font-bold text-slate-600">-</p>
+                                <p id="molSmilesLabel" class="text-[12px] text-black mt-1 font-mono truncate px-4">-</p>
+                            </div>
+
+                            <!-- Drug-likeness Indicators -->
+                            <div class="mt-4 w-full bg-slate-50 rounded border border-slate-200 p-3 space-y-2">
+                                <p class="text-[12px] text-black font-bold border-b border-slate-200 pb-1 mb-2">약물성
+                                    주요 지표 / 평가</p>
+                                <div id="propertyTable" class="space-y-1.5 text-[10px]">
+                                    <!-- Populated dynamically -->
+                                    <div class="flex justify-between items-center text-slate-400">분자량: <span>-</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-slate-400">LogP: <span>-</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-slate-400">TPSA: <span>-</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-slate-400">HBD: <span>-</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-slate-400">HBA: <span>-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Radar Chart -->
+                        <div class="col-span-5 bg-white rounded border border-slate-200 p-6 flex flex-col shadow-sm">
+                            <div class="flex justify-between items-center mb-4">
+                                <p class="text-[12px] text-black font-bold uppercase tracking-widest">Inhibition
+                                    Effect across Clusters (C1-C13)</p>
+                                <button onclick="downloadRadarChart()"
+                                    class="px-2 py-1 bg-primary/5 hover:bg-primary/10 text-primary text-[10px] font-bold rounded flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-xs">download</span> Export
+                                </button>
+                            </div>
+                            <div id="radarChart" class="flex-1 border border-slate-50 rounded"></div>
+                        </div>
+
+                        <!-- Legend -->
+                        <div
+                            class="col-span-3 bg-white rounded border border-slate-200 p-6 shadow-sm overflow-hidden flex flex-col">
+                            <p class="text-[12px] text-black font-bold uppercase tracking-widest mb-4">Cluster
+                                Descriptions</p>
+                            <div id="clusterLegend"
+                                class="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2 text-[10px]">
+                                <!-- Will be populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Footer -->
+            <footer class="h-10 bg-slate-100 border-t border-slate-200 flex items-center justify-between px-8 shrink-0">
+                <div class="text-[12px] text-black font-bold tracking-wide">MTB-INHIBITOR DISCOVERY PLATFORM
+                    v2.5.0</div>
+                <div class="flex items-center gap-6">
+                    <div class="flex items-center gap-2">
+                        <span id="modelStatus" class="w-2 h-2 rounded-full bg-green-500"></span>
+                        <span class="text-[10px] text-slate-500">ML Model Core 2.1 Online</span>
+                    </div>
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <script>
+        let currentSessionId = null;
+        let currentResults = [];
+        let currentPage = 1;
+        const itemsPerPage = 5;
+        let selectedIndex = 0;
+        let unknownCounter = 1;
+
+        const clusterDescriptions = {
+            'C1': 'TCA 회로 및 중심 탄소 대사 (Wall synthesis)',
+            'C2': '번역 및 tRNA 합성 (Transcription/Translation)',
+            'C3': '비방향족 아미노산 생합성 (DNA metabolism)',
+            'C4': '방향족 아미노산 생합성 (Intermediary metabolism)',
+            'C5': '스트레스 방어 및 대사 평형 (ATP production)',
+            'C6': 'tRNA 및 초기 폴리펩타이드 변형 (Lipid biosynthesis)',
+            'C7': '엽산 및 퓨린 대사 (Regulatory genes)',
+            'C8': 'DNA 복제 및 전사 조절 (Cellular envelope)',
+            'C9': '지질 및 지질 보조인자 합성 (Hypoxia response)',
+            'C10': '당분해 및 당신생합성 (Persistence factors)',
+            'C11': '펩티도글리칸 및 전구체 합성 (Cell wall)',
+            'C12': '퓨린 및 피리미딘 대사 (Nucleotide)',
+            'C13': '포르피린 화합물 합성 (Porphyrin)'
+        };
+
+        function populateLegend(activeClusters) {
+            const legend = document.getElementById('clusterLegend');
+            legend.innerHTML = '';
+
+            Object.keys(clusterDescriptions).forEach(cid => {
+                const isActive = activeClusters && activeClusters[cid] === 1;
+                const div = document.createElement('div');
+                div.className = `flex items-start gap-2 p-1.5 rounded ${isActive ? 'bg-primary/5 border border-primary/10' : 'hover:bg-slate-50'}`;
+                div.innerHTML = `
+                    <span class="text-[10px] font-bold ${isActive ? 'bg-primary text-white' : 'bg-slate-200 text-slate-600'} w-5 h-5 flex items-center justify-center shrink-0">${cid}</span>
+                    <span class="text-[11px] ${isActive ? 'text-primary font-bold' : 'text-slate-600'} leading-tight">${clusterDescriptions[cid]}</span>
+                `;
+                legend.appendChild(div);
+            });
+        }
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            document.getElementById('loading').style.display = 'flex';
+            document.getElementById('statusText').innerText = 'Processing...';
+            document.getElementById('statusText').className = 'text-blue-400 text-[10px]';
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error('Prediction failed');
+
+                const data = await response.json();
+                currentSessionId = data.session_id;
+                currentResults = data.results;
+
+                updateTable(currentResults);
+                document.getElementById('lastAnalysis').innerText = `Last analysis: ${new Date().toLocaleTimeString()}`;
+                document.getElementById('statusText').innerText = 'Analysis Complete';
+                document.getElementById('statusText').className = 'text-green-400 text-[10px]';
+
+                if (currentResults.length > 0) {
+                    currentPage = 1;
+                    renderTable();
+                    showDetail(0);
+                }
+
+            } catch (error) {
+                console.error(error);
+                alert('파일 처리 중 오류가 발생했습니다.');
+                document.getElementById('statusText').innerText = 'Ready to process';
+                document.getElementById('statusText').className = 'text-green-400 text-[10px]';
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('lastAnalysis').innerText = `Last analysis: ${new Date().toLocaleTimeString()}`;
+            }
+        }
+
+        async function handleDirectInput() {
+            const nameInput = document.getElementById('directName');
+            const smilesInput = document.getElementById('directSmiles');
+
+            const smiles = smilesInput.value.trim();
+            let name = nameInput.value.trim();
+
+            if (!smiles) {
+                alert('SMILES 코드를 입력해주세요.');
+                return;
+            }
+
+            if (!name) {
+                name = `Unknown ${unknownCounter++}`;
+            }
+
+            document.getElementById('loading').style.display = 'flex';
+            document.getElementById('statusText').innerText = 'Analyzing Single Compound...';
+
+            try {
+                const response = await fetch('/predict-direct', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ smiles, name, session_id: currentSessionId })
+                });
+
+                if (!response.ok) throw new Error('Analysis failed');
+
+                const data = await response.json();
+                currentSessionId = data.session_id;
+                const newResult = data.results[0];
+
+                // Append to existing results (cumulative)
+                currentResults.push(newResult);
+
+                document.getElementById('statusText').innerText = 'Analysis Complete';
+                document.getElementById('statusText').className = 'text-green-400 text-[10px]';
+
+                renderTable();
+                showDetail(currentResults.length - 1);
+
+            } catch (error) {
+                console.error(error);
+                alert('분석 중 오류가 발생했습니다.');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('resultTableBody');
+            const paginationContainer = document.getElementById('paginationContainer');
+            tbody.innerHTML = '';
+
+            if (currentResults.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="px-6 py-12 text-center text-slate-400">결과가 없습니다.</td></tr>';
+                paginationContainer.classList.add('hidden');
+                return;
+            }
+
+            paginationContainer.classList.remove('hidden');
+            const total = currentResults.length;
+            const totalPages = Math.ceil(total / itemsPerPage);
+
+            // Bounds
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = Math.min(start + itemsPerPage, total);
+
+            document.getElementById('pageStart').innerText = total > 0 ? start + 1 : 0;
+            document.getElementById('pageEnd').innerText = end;
+            document.getElementById('totalResults').innerText = total;
+
+            const pageData = currentResults.slice(start, end);
+
+            pageData.forEach((row, localIndex) => {
+                const globalIndex = start + localIndex;
+                const tr = document.createElement('tr');
+                tr.className = `hover:bg-blue-50/30 transition-colors cursor-pointer ${selectedIndex === globalIndex ? 'bg-blue-50/50 border-l-4 border-l-primary' : ''}`;
+                tr.onclick = () => {
+                    selectedIndex = globalIndex;
+                    showDetail(globalIndex);
+                    renderTable(); // Refresh for selection style
+                };
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 font-bold text-primary text-sm">${row.ID}</td>
+                    <td class="px-6 py-4 font-mono text-[11px] text-slate-500 max-w-xs truncate">${row.SMILES}</td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="inline-block px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded">${row.Hit_Count}</span>
+                    </td>
+                    <td class="px-6 py-4 text-xs text-slate-500">${row.Expert_Summary}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Update Pagination Buttons
+            document.getElementById('prevBtn').disabled = currentPage === 1;
+            document.getElementById('nextBtn').disabled = currentPage === totalPages;
+
+            const pageNumbers = document.getElementById('pageNumbers');
+            pageNumbers.innerHTML = '';
+            for (let i = 1; i <= totalPages; i++) {
+                const btn = document.createElement('button');
+                btn.className = `px-2 py-1 text-xs rounded border ${currentPage === i ? 'bg-primary text-white border-primary' : 'bg-white text-slate-600 border-slate-200'}`;
+                btn.innerText = i;
+                btn.onclick = () => {
+                    currentPage = i;
+                    renderTable();
+                };
+                pageNumbers.appendChild(btn);
+            }
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(currentResults.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable();
+            }
+        }
+
+        function updateTable(results) {
+            currentResults = results;
+            currentPage = 1;
+            renderTable();
+        }
+
+        function showDetail(index) {
+            const row = currentResults[index];
+            if (!row) return;
+
+            document.getElementById('detailSection').classList.remove('hidden');
+            document.getElementById('detailName').innerText = row.ID;
+            document.getElementById('detailHitCount').innerText = row.Hit_Count;
+
+            document.getElementById('molNameLabel').innerText = row.ID;
+            document.getElementById('molSmilesLabel').innerText = row.SMILES;
+
+            if (row.Image) {
+                document.getElementById('molImage').src = `data:image/png;base64,${row.Image}`;
+                document.getElementById('molImage').classList.remove('hidden');
+                document.getElementById('noMolImage').classList.add('hidden');
+            } else {
+                document.getElementById('molImage').classList.add('hidden');
+                document.getElementById('noMolImage').classList.remove('hidden');
+            }
+
+            drawRadar(row.Radar);
+            populateLegend(row.Active);
+            populateProperties(row.Properties);
+
+            // Scroll to detail
+            document.getElementById('detailSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function populateProperties(props) {
+            const container = document.getElementById('propertyTable');
+            if (!props) {
+                container.innerHTML = '<p class="text-center text-slate-400">데이터 없음</p>';
+                return;
+            }
+
+            const formatProp = (label, data) => {
+                const colorClass = data.status === '적합' ? 'text-green-600 font-bold' : 'text-red-500 font-bold';
+                return `
+                    <div class="flex justify-between items-center py-0.5 border-b border-slate-100 last:border-0">
+                        <span class="text-slate-500">${label}:</span>
+                        <div class="flex gap-2 items-center text-right">
+                            <span class="text-slate-700 font-medium">${data.value}${data.unit}</span>
+                            <span class="${colorClass}">${data.status}</span>
+                        </div>
+                    </div>
+                `;
+            };
+
+            container.innerHTML = `
+                ${formatProp('분자량', props.MW)}
+                ${formatProp('LogP(지용성/유수 분배계수)', props.LogP)}
+                ${formatProp('TPSA(극성 표면적)', props.TPSA)}
+                ${formatProp('HBD(수소결합 공여체)', props.HBD)}
+                ${formatProp('HBA(수소결합 수용체)', props.HBA)}
+            `;
+        }
+
+        function drawRadar(data) {
+            const trace = {
+                type: 'scatterpolar',
+                r: data.values,
+                theta: data.categories,
+                fill: 'toself',
+                name: 'Inhibition Prob',
+                line: { color: '#1a355b' }
+            };
+
+            const cutoffTrace = {
+                type: 'scatterpolar',
+                r: data.cutoffs,
+                theta: data.categories,
+                mode: 'lines',
+                name: 'Threshold',
+                line: { color: 'red', dash: 'dash', width: 1 }
+            };
+
+            const layout = {
+                polar: {
+                    radialaxis: { visible: true, range: [0, 1] },
+                    angularaxis: { direction: 'clockwise' }
+                },
+                showlegend: false,
+                margin: { l: 40, r: 40, t: 30, b: 30 },
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)'
+            };
+
+            Plotly.newPlot('radarChart', [trace, cutoffTrace], layout, { responsive: true, displayModeBar: false });
+        }
+
+        async function exportData(format) {
+            if (!currentSessionId) {
+                alert('수행된 분석 결과가 없습니다.');
+                return;
+            }
+
+            window.location.href = `/export/${currentSessionId}?format=${format}`;
+        }
+
+        function downloadMolImage() {
+            const img = document.getElementById('molImage');
+            if (!img.src) return;
+            const name = document.getElementById('detailName').innerText;
+            const link = document.createElement('a');
+            link.href = img.src;
+            link.download = `${name}_structure.png`;
+            link.click();
+        }
+
+        function downloadRadarChart() {
+            const name = document.getElementById('detailName').innerText;
+            Plotly.downloadImage('radarChart', {
+                format: 'png',
+                width: 800,
+                height: 600,
+                filename: `${name}_radar_chart`
+            });
+        }
+
+        function resetData() {
+            currentSessionId = null;
+            currentResults = [];
+            selectedIndex = 0;
+            currentPage = 1;
+            unknownCounter = 1;
+
+            // Clear inputs
+            document.getElementById('fileInput').value = '';
+            document.getElementById('directName').value = '';
+            document.getElementById('directSmiles').value = '';
+
+            updateTable([]);
+            document.getElementById('detailSection').classList.add('hidden');
+            document.getElementById('lastAnalysis').innerText = 'Last analysis: None';
+            document.getElementById('statusText').innerText = 'Ready to process';
+            document.getElementById('statusText').className = 'text-green-400 text-[10px]';
+        }
+
+        // Init Legend
+        populateLegend(null);
+    </script>
+</body>
+
+</html>
