@@ -14,6 +14,9 @@ RUN apt-get update && apt-get install -y \
 # 파이썬 워크디렉토리 설정
 WORKDIR /app
 
+# 파이썬 경로 설정
+ENV PYTHONPATH=/app/Mtb_Inhibitor_Web/backend:$PYTHONPATH
+
 # (해당되는 경우) 캐시 최적화를 위해 requirement.txt부터 복사 및 설치
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip
