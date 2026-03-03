@@ -39,13 +39,39 @@ class MtbModelService:
     def __init__(self, base_model_path):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model_paths = [os.path.join(base_model_path, f'model_{i}', 'model.pt') for i in range(5)]
+        self.cutoffs = DEFAULT_CUTOFFS
         self.features_generator = get_features_generator('rdkit_2d_normalized')
         
         # Optimize PyTorch threading for balance between speed and memory
         torch.set_num_threads(2)
 
+        # Cache models and scalers in memory (Hugging Face has 16GB RAM)
+        self.loaded_models = []
+        self.loaded_scalers = []
+        self._load_all_models()
+
+    def _load_all_models(self):
+        print(f"Loading {len(self.model_paths)} models into memory ({self.device})...", flush=True)
+        for path in self.model_paths:
+            if os.path.exists(path):
+                try:
+                    model = load_checkpoint(path, device=self.device)
+                    model.eval()
+                    scalers = load_scalers(path)
+                    self.loaded_models.append(model)
+                    self.loaded_scalers.append(scalers)
+                    print(f" - Loaded model: {os.path.basename(os.path.dirname(path))}", flush=True)
+                except Exception as e:
+                    print(f"Warning: Failed to load model at {path}: {e}", flush=True)
+            else:
+                print(f"Warning: Model path not found: {path}", flush=True)
+
     def predict_smiles(self, smiles_list):
         try:
+            if not self.loaded_models:
+                print("Error: No models loaded.")
+                return None
+
             # Prepare datapoints with RDKit features
             datapoints = []
             for s in smiles_list:
@@ -54,17 +80,7 @@ class MtbModelService:
                 datapoints.append(dp)
             
             all_preds = []
-            import gc
-            
-            for path in self.model_paths:
-                if not os.path.exists(path):
-                    continue
-                
-                # Load one model at a time to save memory on Render
-                model = load_checkpoint(path, device=self.device)
-                model.eval() # Ensure evaluation mode
-                scalers = load_scalers(path)
-                
+            for model, scalers in zip(self.loaded_models, self.loaded_scalers):
                 scaler, features_scaler, _, _, _ = scalers
                 
                 # Clone data to avoid repeated scaling
@@ -72,8 +88,8 @@ class MtbModelService:
                 if features_scaler is not None:
                     current_test_data.normalize_features(features_scaler)
                 
-                # num_workers=0, batch_size=8 to prevent memory spikes
-                loader = MoleculeDataLoader(dataset=current_test_data, batch_size=8, num_workers=0)
+                # Use faster batch_size (64) as memory is plenty on Hugging Face
+                loader = MoleculeDataLoader(dataset=current_test_data, batch_size=64, num_workers=0)
                 
                 with torch.no_grad():
                     model_preds = predict(
@@ -82,11 +98,6 @@ class MtbModelService:
                         scaler=scaler
                     )
                 all_preds.append(np.array(model_preds))
-                
-                # Release memory explicitly
-                del model
-                del scalers
-                gc.collect()
             
             if not all_preds:
                 return None
